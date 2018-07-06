@@ -1,0 +1,26 @@
+[{
+	"Partij": "Blanco",
+	"Partijleden": ["Blanco"]
+
+ },
+ {
+	"Partij": "PVV",
+	"Partijleden": ["Geert Wilders", "Roy van Aalst", "Harm Beertema", "Sietse Fritsma"]
+
+ },
+ {
+ 	"Partij": "Groenlinks",
+ 	"Partijleden": ["Jesse Klaver", "Tineke Strik", "Suzanne Kröger", "Tom van der Lee"]
+ },
+ {
+ 	"Partij": "VVD",
+ 	"Partijleden": ["Mark Rutte", "Klaas Dijkhoff", "Malik Azmani", "Jeanine Hennis-Plasschaert", "André Bosman"]
+ },
+ {
+ 	"Partij": "CDA",
+ 	"Partijleden": ["Mustafa Amaouch", "Sybrand Haersma Buma", "Jaco Geurts", "Agnes Mulder"]
+ },
+ {
+ 	"Partij": "D66",
+ 	"Partijleden": ["Alexander Pechtold", "Salima Belhaj", "Vera Bergkamp", "Antje Diertens"]
+ }]

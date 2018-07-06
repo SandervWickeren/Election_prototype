@@ -1,0 +1,327 @@
+<html>
+<link rel="stylesheet" type="text/css" href="style.css">
+
+<!-- Hash library import -->
+<script src="https://unpkg.com/node-forge@0.7.0/dist/forge.min.js"></script>
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.0/css/all.css" integrity="sha384-lKuwvrZot6UHsBSfcMvOkWwlCMgc0TaWr+30HWe3a4ltaBwTZhyTEggF5tJv8tbt" crossorigin="anonymous">
+
+
+
+<script>
+// Global variables
+var election = null;
+var started = false;
+var activated = false;
+
+// Used for candidate selection proces.
+var accepted = 0;
+var selectedCandidate = '';
+
+// Ballot modal
+var modal = document.getElementById('conf');
+
+// Text in one spot.
+var selectVote = 'Selecteer de kandidaat waarop u wilt stemmen en druk vervolgens op "bevestigen".';
+var standby = "Wachten op activering..."
+var busyVoting = "Bezig met stemmen..."
+
+
+	// Handles file selection.
+	function onFileSelected(event) {
+	  var selectedFile = event.target.files[0];
+	  var reader = new FileReader();
+
+
+	  // When the file is loaded
+	  reader.onload = function(event) {
+	    
+	    // Content of the selected file
+	    var value = event.target.result;
+
+	    // Display the hash of the selected file.
+	    document.getElementById('votingMachineScreenText').innerHTML = "Bevestig de hash: " + calculateHash(value);
+
+	    // Convert string into json and save in global variable.
+	    election = JSON.parse(value);
+	    };
+
+	  reader.readAsText(selectedFile);
+	};
+
+	// Handles the drawing of the election.
+	function loadElection(obj) {
+
+	    // Get table variables.
+	    var table = document.getElementById('votingMachineControl');
+	    var tableContent = document.getElementById('votingMachineControl').innerHTML;
+	    var tableContent = '';
+
+	    // Loop trough the obj and draw every party and its candidates.
+	    // Party
+	    for (var i=0; i<obj.length;i++) {
+	    	tableContent += '<div id="tableDiv"><table><th>' + obj[i].Partij + '</th>';
+
+	    	// Candidates
+	    	for (var j=0; j<obj[i].Partijleden.length;j++) {
+	    		tableContent += '<tr id="row"><td><input type="radio" name="person" value="' + obj[i].Partijleden[j] + '">' + obj[i].Partijleden[j] + '</td></tr>'
+	    	}
+
+	    	tableContent += '</table></div>'
+	    }
+
+	    table.innerHTML = tableContent;
+	};
+
+	// Calculates hash using forge.
+	function calculateHash(text) {
+		var md = forge.md.sha256.create();
+		md.update(text);
+		return md.digest().toHex();
+	};
+
+	// The voting proces as seen by the voter.
+	function confirmVote() {
+		if (started && activated) {
+			var radios = document.getElementsByTagName('input');
+			var votingMachineScreenText = document.getElementById('votingMachineScreenText');
+			votingMachineScreenText.innerHTML = selectVote;
+			var value;
+
+			// Communicate status
+			document.getElementById('managementMachineScreenText').innerHTML = busyVoting;
+
+			for (var i = 0; i < radios.length; i++) {
+				if (radios[i].type === 'radio' && radios[i].checked) {
+					value = radios[i].value;
+					console.log(value);
+
+					// Reset if another candidate has been selected
+					if (value != selectedCandidate) {
+						selectedCandidate = ''
+						accepted = 0;
+					}
+
+					// Check if double accepted
+					if (accepted == 0) {
+						votingMachineScreenText.innerHTML = 'U wilt voor ' + value + ' stemmen. Klik op "annuleren" om de keuze te wijzigen of op "bevestigen" om de keuze uit te printen.';
+						accepted = 1;
+						selectedCandidate = value;
+
+					} else if (accepted == 1) {
+						votingMachineScreenText.innerHTML = 'Het stembiljet wordt uitgeprint..';
+						accepted = 0;
+						printBallot(value);
+					};
+
+					
+				}
+			}
+		}
+	};
+
+	// Function that handles the inserted key.
+	function keyChange() {
+		var checkbox = document.getElementById('keyCheck');
+		var key = document.getElementById('key');
+		var form = document.getElementById('inputForm');
+		var text = document.getElementById('votingMachineScreenText');
+
+
+		if (checkbox.checked == true) {
+			key.style.color = 'green';
+			key.style.opacity = '1';
+			form.style.display = 'inline-block';
+			text.innerHTML = "Selecteer een optie.";
+			checkClickable();
+			document.getElementById('votingMachineControl').innerHTML = '';
+		} else {
+			key.style.color = 'black';
+			key.style.opacity = '0.5';
+			form.style.display = 'none';
+			if (started == false) {
+				text.innerHTML = 'Gebruik de sleutel voor toegang.'
+			} else {
+				text.innerHTML = standby;
+			}
+			
+		}
+	};
+
+	// Launches election and sets various text values.
+	function startElection() {
+		if (election != null) {
+			started = true;
+			document.getElementById('managementMachineScreenText').innerHTML = "Verkiezing geactiveerd";
+			document.getElementById('electionStatus').innerHTML = "Verkiezing actief";
+			document.getElementById('electionStatus').style.color = 'green';
+			document.getElementById('votingMachineScreenText').innerHTML = "Selecteer een optie."
+			checkClickable()
+
+
+		}
+	};
+
+	// Stops election and resets various text values.
+	function endElection() {
+		election = null;
+		var control = document.getElementById('votingMachineControl');
+		control.innerHTML = "";
+		document.getElementById('inputForm').reset();
+		started = false;
+		checkClickable();
+
+		document.getElementById('managementMachineScreenText').innerHTML = "Verkiezing inactief";
+		document.getElementById('electionStatus').innerHTML = "Verkiezing inactief";
+		document.getElementById('electionStatus').style.color = 'red';
+	};
+
+	// Function that enables and disables buttons based on the election.
+	function checkClickable() {
+		if (started == true) {
+			document.getElementById('sElect').disabled = true;
+			document.getElementById('electionInput').disabled = true;
+			document.getElementById('eElect').disabled = false;
+		} else {
+			document.getElementById('sElect').disabled = false;
+			document.getElementById('electionInput').disabled = false;
+			document.getElementById('eElect').disabled = true;
+		}
+	};
+
+	// Function that shows the candidates.
+	function showCandidates() {
+		var text = document.getElementById('managementMachineScreenText');
+		var voteMachineText = document.getElementById('votingMachineScreenText');
+
+		// Only show candidates, when there is an election and no key inserted.
+		if (started == true && document.getElementById('keyCheck').checked == false) {
+			loadElection(election);
+			activated = true;
+			text.innerHTML = "Stemmachine geactiveerd."
+			voteMachineText.innerHTML = selectVote;
+
+		} else {
+			text.innerHTML = "Start een verkiezing en verwijder de sleutel.";
+		};
+		
+	};
+
+	// Handles the cancel click from a voter.
+	function cancelSelection() {
+		if (activated == true && started == true) {
+			showCandidates();
+			document.getElementById('managementMachineScreenText').innerHTML = busyVoting;
+		}
+
+	};
+
+	// Generates an example ballot print.
+	function printBallot(candidate) {
+		// Communicate status.
+		document.getElementById('managementMachineScreenText').innerHTML = "Stembiljet wordt geprint..."
+
+		// Get the modal
+		var modal = document.getElementById('conf')
+		modal.style.display = "block";
+		document.getElementById('confirmationScreen-text').innerHTML = candidate + ' (' + getParty(candidate) + ')';
+
+		// When the user clicks anywhere outside of the modal, close it
+		window.onclick = function(event) {
+		    if (event.target == modal) {
+		        closeBallot();
+		    }
+		}
+	};
+
+	// Handles the close of the ballot print. Taking the computer back to votemodus.
+	function closeBallot() {
+		console.log(activated);
+		console.log(started);
+		if (activated && started) {
+			var modal = document.getElementById('conf');
+			modal.style.display = "none";
+			activated = false;
+			document.getElementById('votingMachineControl').innerHTML = "";
+			document.getElementById('votingMachineScreenText').innerHTML = standby;
+			document.getElementById('managementMachineScreenText').innerHTML = 'Stemmachine gedeactiveerd.'
+		}
+	};
+
+	// Retrieves the party of a candidate using the election information.
+	function getParty(candidate) {
+		if (election != null) {
+			console.log(election.length);
+	    	for (var i=0; i<election.length;i++) {
+	    		console.log(election[i].Partijleden);
+	    		if (election[i].Partijleden.indexOf(candidate) > -1) {
+	    			return election[i].Partij;
+	    		}
+	    	}
+	    	return 'Geen gevonden partij.';		
+		} else {
+			return 'Geen gevonden verkiezing.';
+		}
+	};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+<body>
+
+<h2>Verkiezingsprototype</h2>
+
+<div id='conf' class='confirmationScreen'>
+	<div class='confirmationScreen-content'>
+		<span class="close" onclick='closeBallot()'>&times;</span>
+		<div id='confirmationScreen-text'> Naam </div>
+
+  </div>
+</div>
+
+
+
+<div id='votingMachine'>
+	<div width='100%' height="auto"><h2>Stemmachine</h2></div>
+	<div id='votingMachineScreen'><p id='votingMachineScreenText'>Gebruik de sleutel voor toegang.</p>
+		<form id='inputForm'>
+			<input type='file' onchange='onFileSelected(event)' id="electionInput" accept="application/json">
+			<button type='button' id='eElect' onclick='endElection()'>Eindig verkiezing</button>
+			<button type='button' id='sElect' onclick='startElection()'>Start verkiezing</button>
+			<p id='electionStatus'> Verkiezing inactief </p>
+		</form>
+	</div>
+	<div id='votingMachineControl' width='100%' height='auto'></div>
+	<div id='votingMachineKey'><input type='checkbox' onchange='keyChange()' id='keyCheck'><i id='key' class="fas fa-key"></i></div>
+	<div id='confirmButton'>
+		<button type='button' id='selectButtons' onclick='cancelSelection()'>Annuleer</button>
+		<button type='button' id='selectButtons' onclick='confirmVote()'>Bevestig</button>
+	</div>
+</div>
+<div id='managementMachine'>
+	<div width='100%' height="auto"><h2>Bestuurmachine</h2></div>
+	<div id='managementMachineScreen'><p id='managementMachineScreenText'>Verkiezing inactief</p></div>
+	<div id='managementMachineControl'>
+		<div id='activateButton'>
+			<button type='button' id='selectButtons' onclick='showCandidates()'> Activeer stemmachine </button>
+			<button type='button' id='selectButtons' onclick='closeBallot()'> Stop stemmachine </button>
+		</div>
+	</div>
+</div> 
+
+
+
+</body>
+</html> 
